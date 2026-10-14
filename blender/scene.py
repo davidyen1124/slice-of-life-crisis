@@ -23,6 +23,7 @@ GLB = os.path.join(ROOT, arg('--glb', 'public/scene.glb'))
 HDR = os.path.join(ROOT, arg('--hdr', 'art/raw/room.hdr'))
 LOOK = arg('--look')
 SAMPLES = int(arg('--samples', '192'))
+PANO = int(arg('--pano', '512'))  # it only lights the scene and blurs into the knife: 512 x 256 is plenty
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
@@ -328,7 +329,7 @@ scene.collection.objects.link(po)
 po.location = (0, 0, 0.05)
 po.rotation_euler = (math.pi / 2, 0, 0)
 scene.camera = po
-scene.render.resolution_x, scene.render.resolution_y = 1024, 512
+scene.render.resolution_x, scene.render.resolution_y = PANO, PANO // 2
 scene.render.image_settings.file_format = 'HDR'
 os.makedirs(os.path.dirname(HDR), exist_ok=True)
 scene.render.filepath = HDR

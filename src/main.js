@@ -55,6 +55,11 @@ async function boot() {
   for (let i = 0; i < 3; i++) frame(performance.now(), true)
   setupUI()
   new Input(canvas, gestures)
+  // the keyboard: space or enter takes the next slice off the end of the biggest piece
+  window.addEventListener('keydown', (e) => {
+    if (e.target.closest?.('button') || e.repeat) return
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); sound.wake(); keyboardCut() }
+  })
   // debugging switches
   if (params.has('nodof')) stage.finish.uniforms.uTaps.value = 0
   if (params.has('noshadow')) stage.renderer.shadowMap.enabled = false
@@ -247,6 +252,9 @@ function planCut(p0, p1) {
 }
 
 function beginJob(j) {
+  // a keyboard cut is placed when its turn comes, against the pieces as they are then
+  if (j.keyboard) j = keyboardLine()
+  if (!j) return
   // re-check against the pieces as they are now (an earlier cut may have moved them)
   const fresh = planCut(j.p0, j.p1)
   if (!fresh) return
@@ -494,6 +502,30 @@ function shave(j, volume) {
     v.y = Math.random() * 0.04
     crumbs.add(p, v, Math.random() < 0.2 ? 'crust' : 'crumb', 0.0005 + Math.random() * 0.001)
   }
+}
+
+function keyboardCut() {
+  if (job || queue.length) { if (queue.length < 3) queue.push({ keyboard: true }) }
+  else beginJob({ keyboard: true })
+}
+
+/** a slice of about 2.6 cm off the right-hand end of the biggest piece, across its length */
+function keyboardLine() {
+  if (!pieces.length) return null
+  const p = pieces.reduce((a, b) => (b.volume > a.volume ? b : a))
+  const axis = new THREE.Vector3(1, 0, 0).applyQuaternion(p.object.quaternion).setY(0)
+  if (axis.lengthSq() < 0.2) return null
+  axis.normalize()
+  if (axis.dot(new THREE.Vector3(1, 0, 0).applyQuaternion(stage.camera.quaternion)) < 0) axis.negate()
+  const qi = p.object.quaternion.clone().invert()
+  const [, hi] = p.extent(axis.clone().applyQuaternion(qi))
+  const t = hi + axis.dot(p.object.position) - 0.026
+  const side = new THREE.Vector3(-axis.z, 0, axis.x)
+  const mid = new THREE.Vector3(...p.centroid).applyMatrix4(p.object.matrixWorld)
+  const c = mid.clone().addScaledVector(axis, t - axis.dot(mid))
+  const line = { p0: c.clone().addScaledVector(side, -0.07), p1: c.clone().addScaledVector(side, 0.07) }
+  line.p0.y = line.p1.y = LOAF.H
+  return line
 }
 
 // ----------------------------------------------------------------------------------- lifting a piece

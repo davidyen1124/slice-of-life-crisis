@@ -5,3 +5,4 @@ art/logs
 qa/*.jpg
 qa/*.png
 .DS_Store
+.env*

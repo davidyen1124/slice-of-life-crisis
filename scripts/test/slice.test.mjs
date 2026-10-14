@@ -1,9 +1,10 @@
 import { readGlb } from './glb.mjs'
 import { split, meshVolume, meshCentroid } from '../../src/slice.js'
+import { weldedOpen } from './weld.mjs'
 const m = readGlb('public/scene.glb')
 console.log(Object.keys(m))
 const loaf = m.castella
-const edges = (mm) => { const e = new Map(); for (let t = 0; t < mm.idx.length; t += 3) for (let k = 0; k < 3; k++) { const a = mm.idx[t + k], b = mm.idx[t + (k + 1) % 3]; const key = a + ',' + b; e.set(key, (e.get(key) || 0) + 1) } let open = 0; for (const [k] of e) { const [a, b] = k.split(','); if (!e.has(b + ',' + a)) open++ } return open }
+const edges = (mm) => weldedOpen(mm).open
 console.log('loaf verts', loaf.skin.length, 'tris', loaf.idx.length / 3, 'open edges', edges(loaf), 'volume cm3', (meshVolume(loaf) * 1e6).toFixed(2), 'centroid', meshCentroid(loaf).map((v) => v.toFixed(4)), 'skin>0.5', loaf.skin.filter((s) => s > 0.5).length, 't', loaf.t)
 let lo = [9, 9, 9], hi = [-9, -9, -9]; for (let i = 0; i < loaf.pos.length; i += 3) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], loaf.pos[i + k]); hi[k] = Math.max(hi[k], loaf.pos[i + k]) }
 console.log('bounds', lo.map((v) => v.toFixed(4)), hi.map((v) => v.toFixed(4)))
