@@ -221,6 +221,8 @@ body.ready #page { opacity: 1; }
 body.ready #loader { opacity: 0; visibility: hidden; }
 .ltitle {
   margin: 0;
+  /* the web font may still be on its way: the loader sets its title in the system's own mincho */
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', 'Noto Serif CJK JP', 'Noto Serif JP', serif;
   writing-mode: vertical-rl;
   font-weight: 700;
   font-size: 30px;

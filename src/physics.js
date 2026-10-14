@@ -13,7 +13,10 @@ const groups = (member, filter) => (member << 16) | filter
 
 export class Physics {
   async init() {
-    await RAPIER.init()
+    // this Rapier build's loader still calls its WASM initialiser the old way and says so; that note is not ours
+    const warn = console.warn
+    console.warn = (...a) => { if (!String(a[0]).includes('deprecated parameters for the initialization function')) warn(...a) }
+    try { await RAPIER.init() } finally { console.warn = warn }
     this.R = RAPIER
     const world = (this.world = new RAPIER.World({ x: 0, y: -9.81, z: 0 }))
     world.timestep = STEP

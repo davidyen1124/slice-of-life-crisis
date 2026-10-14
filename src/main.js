@@ -761,6 +761,26 @@ window.__castella = {
   /** stop the clock, and advance it by whole frames (QA only: frames are 1/60 s there) */
   pause(on = true) { paused = on },
   step(n = 1) { for (let i = 0; i < n; i++) frame(performance.now()) },
+  clock(t = 0) { stage.time = t },
+  /** the lowest point of any piece (m): nothing should ever be below the table */
+  lowest() {
+    let lo = Infinity
+    for (const p of pieces) {
+      const qi = p.object.quaternion.clone().invert()
+      const [a] = p.extent(UP.clone().applyQuaternion(qi))
+      lo = Math.min(lo, a + p.object.position.y)
+    }
+    return lo
+  },
+  /** the screen point over the top of the biggest piece */
+  biggest() {
+    const p = pieces.reduce((a, b) => (b.volume > a.volume ? b : a))
+    const c = new THREE.Vector3(...p.centroid).applyMatrix4(p.object.matrixWorld)
+    const qi = p.object.quaternion.clone().invert()
+    const [, hi] = p.extent(UP.clone().applyQuaternion(qi))
+    c.y = hi + p.object.position.y
+    return this.screen(c.x, c.y, c.z)
+  },
   view,
   info() {
     return pieces.map((p) => {
