@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>長崎カステラ</title>
+  <meta name="description" content="一棹のカステラを、指で切る。A Nagasaki castella you slice with your finger, in real-time 3D." />
+  <meta name="theme-color" content="#efe9df" />
+  <meta property="og:title" content="長崎カステラ" />
+  <meta property="og:description" content="一棹、好きな厚さに。A Nagasaki castella you slice with your finger." />
+  <meta property="og:image" content="/og.jpg" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700&text=%E3%80%81%E3%80%82%E3%81%86%E3%81%8D%E3%81%95%E3%81%9E%E3%81%A3%E3%81%A6%E3%81%A7%E3%81%AA%E3%81%AB%E3%81%AE%E3%82%82%E3%82%8B%E3%82%8C%E3%82%92%E3%82%AB%E3%82%B9%E3%83%86%E3%83%A9%E4%B8%80%E4%B8%83%E4%B8%89%E4%B9%9D%E4%BA%8C%E4%BA%94%E5%85%AB%E5%85%AD%E5%88%87%E5%8D%81%E5%8E%9A%E5%9B%9B%E5%A5%BD%E5%B4%8E%E6%8C%87%E6%A3%B9%E9%95%B7%E9%9F%B3&display=block" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,400;1,500&display=swap" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <canvas id="scene" aria-label="A Nagasaki castella on a hinoki board. Swipe across it to slice."></canvas>
+
+  <div id="page" aria-hidden="false">
+    <header class="masthead">
+      <p class="kicker">Kasutera <span class="dot">·</span> Nagasaki</p>
+    </header>
+
+    <div class="title" role="heading" aria-level="1">
+      <h1>長崎カステラ</h1>
+      <p class="sub">一棹、好きな厚さに。</p>
+      <span class="seal" aria-hidden="true">切</span>
+    </div>
+
+    <div class="count" aria-live="polite"><span id="count">一棹</span></div>
+
+    <footer class="foot">
+      <p class="hint" id="hint"><span class="ja">なぞって、切る</span><span class="en">swipe to slice · hold to lift</span></p>
+    </footer>
+
+    <div class="tools">
+      <button id="sound" class="tool" type="button" aria-pressed="true" aria-label="Sound on">音</button>
+      <button id="again" class="tool wide" type="button" aria-label="A new castella" hidden>もう一棹</button>
+    </div>
+  </div>
+
+  <div id="loader" role="status" aria-label="Loading">
+    <p class="ltitle">長崎カステラ</p>
+    <span class="bar"><i id="bar"></i></span>
+  </div>
+
+  <noscript><p class="noscript">This page needs JavaScript and WebGL.</p></noscript>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
