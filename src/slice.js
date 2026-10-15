@@ -342,6 +342,12 @@ export function hullPoints(m, cell = 0.004) {
  * the knife has taken through it, which gives the physics a few clean faces rather than thousands of small ones.
  */
 export function polytope(planes) {
+  const out = corners(planes, 1e-6)
+  return out.length >= 4 ? new Float32Array(out.flatMap((c) => c.p)) : null
+}
+
+/** the polytope's corners, each with the planes it lies on; corners closer than `weld` (m, summed over x, y, z) are one */
+function corners(planes, weld) {
   const out = []
   const n = planes.length
   const inside = (x, y, z) => planes.every(([a, b, c, d]) => a * x + b * y + c * z >= d - 1e-7)
@@ -355,10 +361,68 @@ export function polytope(planes) {
         const y = (a1 * (d2 * c3 - c2 * d3) - d1 * (a2 * c3 - c2 * a3) + c1 * (a2 * d3 - d2 * a3)) / det
         const z = (a1 * (b2 * d3 - d2 * b3) - b1 * (a2 * d3 - d2 * a3) + d1 * (a2 * b3 - b2 * a3)) / det
         if (!inside(x, y, z)) continue
-        if (out.some((p) => Math.abs(p[0] - x) + Math.abs(p[1] - y) + Math.abs(p[2] - z) < 1e-6)) continue
-        out.push([x, y, z])
+        let c = out.find(({ p }) => Math.abs(p[0] - x) + Math.abs(p[1] - y) + Math.abs(p[2] - z) < weld)
+        if (!c) out.push((c = { p: [x, y, z], on: new Set() }))
+        c.on.add(i).add(j).add(k)
       }
     }
   }
-  return out.length >= 4 ? new Float32Array(out.flat()) : null
+  return out
+}
+
+/**
+ * The polytope as a closed triangle mesh, its faces whole, for the physics: { pos, idx }, or null if its corners do
+ * not join up cleanly. Rapier rests one shape on another through four corners of each face at most (parry's
+ * PolygonalFeature holds four), the first four from where the face's first triangle begins. A face of five corners
+ * or more begun at the wrong one holds up only a strip along one edge, and a slice lying across the rest of it sinks
+ * in, centimetres deep, and rocks there for good. So each face here is a fan from the corner that puts its widest
+ * four first.
+ */
+export function polytopeMesh(planes) {
+  const cs = corners(planes, 1e-5)
+  if (cs.length < 4) return null
+  const idx = []
+  for (let f = 0; f < planes.length; f++) {
+    const ring = []
+    for (let i = 0; i < cs.length; i++) if (cs[i].on.has(f)) ring.push(i)
+    if (ring.length < 3) continue
+    // round the face, anticlockwise seen from outside (the half-space's normal points in)
+    const [a, b, c] = planes[f]
+    const u = Math.abs(a) < 0.9 ? [0, -c, b] : [-b, a, 0]
+    const w = [b * u[2] - c * u[1], c * u[0] - a * u[2], a * u[1] - b * u[0]]
+    const o = [0, 1, 2].map((k) => ring.reduce((s, i) => s + cs[i].p[k], 0) / ring.length)
+    const along = (i, e) => (cs[i].p[0] - o[0]) * e[0] + (cs[i].p[1] - o[1]) * e[1] + (cs[i].p[2] - o[2]) * e[2]
+    const ang = new Map(ring.map((i) => [i, Math.atan2(along(i, w), along(i, u))]))
+    ring.sort((i, j) => ang.get(j) - ang.get(i))
+    const m = ring.length
+    const twice = (i, j, k) => {
+      const [p, q, r] = [cs[i].p, cs[j].p, cs[k].p]
+      const e1 = [q[0] - p[0], q[1] - p[1], q[2] - p[2]], e2 = [r[0] - p[0], r[1] - p[1], r[2] - p[2]]
+      return Math.hypot(e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0])
+    }
+    let start = -1, best = -1
+    for (let s = 0; s < m; s++) {
+      const at = (k) => ring[(s + k) % m]
+      // a fan with a triangle of no area would leave Rapier a face without a normal
+      let fan = true
+      for (let k = 1; k + 1 < m && fan; k++) fan = twice(at(0), at(k), at(k + 1)) > 1e-10
+      if (!fan) continue
+      const quad = m <= 4 ? 1 : twice(at(0), at(1), at(2)) + twice(at(0), at(2), at(3))
+      if (quad > best) { best = quad; start = s }
+    }
+    if (start < 0) return null
+    for (let k = 1; k + 1 < m; k++) idx.push(ring[start], ring[(start + k) % m], ring[(start + k + 1) % m])
+  }
+  // closed, every edge once each way, and every corner on it
+  const edges = new Set()
+  for (let t = 0; t < idx.length; t += 3) {
+    for (let e = 0; e < 3; e++) {
+      const key = idx[t + e] + ',' + idx[t + ((e + 1) % 3)]
+      if (edges.has(key)) return null
+      edges.add(key)
+    }
+  }
+  for (const key of edges) if (!edges.has(key.split(',').reverse().join(','))) return null
+  if (new Set(idx).size !== cs.length) return null
+  return { pos: new Float32Array(cs.flatMap((c) => c.p)), idx: new Uint32Array(idx) }
 }

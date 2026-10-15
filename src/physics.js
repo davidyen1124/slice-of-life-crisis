@@ -80,7 +80,10 @@ export class Physics {
         // effort: it rocks and pops, and keeps the whole pile awake. Its island gets more iterations
         .setAdditionalSolverIterations(piece.mass < SMALL ? 10 : 0)
     )
-    let desc = R.ColliderDesc.convexHull(piece.hull())
+    // its exact faces, each begun at the corner from which Rapier rests the most of it on things (see polytopeMesh);
+    // a hull of its corners begins them anywhere
+    const shape = piece.shape()
+    let desc = (shape && R.ColliderDesc.convexMesh(shape.pos, shape.idx)) || R.ColliderDesc.convexHull(piece.hull())
     if (!desc) {
       const b = piece.geometry.boundingBox
       desc = R.ColliderDesc.cuboid((b.max.x - b.min.x) / 2, (b.max.y - b.min.y) / 2, (b.max.z - b.min.z) / 2)

@@ -10,7 +10,7 @@
 // The sponge gives: a knife's edge or a fingertip pushes the surface in (an elastic indentation that dies away
 // with distance and toward the supported bottom), and a piece that lands hard squashes and springs back.
 import * as THREE from 'three'
-import { meshVolume, meshCentroid, split, hullPoints, polytope } from './slice.js'
+import { meshVolume, meshCentroid, split, hullPoints, polytope, polytopeMesh } from './slice.js'
 
 export const LOAF = { L: 0.27, W: 0.09, H: 0.0605 }
 export const DENSITY = 398 // kg/m³: a 1号 castella weighs 580 g and fills 27 × 9 × 6 cm
@@ -325,6 +325,9 @@ export class Piece {
   }
 
   hull() { return polytope(this.planes) || hullPoints(this.mesh) }
+
+  /** the same shape as a triangle mesh with whole faces (or null), which rests more surely on things than a hull of points */
+  shape() { return polytopeMesh(this.planes) }
 
   /** cut by a plane given in this piece's space; returns two new meshes or null */
   cut(n, w) {
