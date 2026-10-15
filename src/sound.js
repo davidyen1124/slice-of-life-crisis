@@ -1,5 +1,14 @@
 // Small sounds, synthesised: the crust giving way, the soft rasp of the blade through the sponge, the edge
 // meeting the hinoki board, and the hush of a slice laid down. No samples: noise and a few struck partials.
+// the sounds draw their own random numbers, so whether audio happens to be running never changes anything else
+let seed = (Date.now() ^ 0x5bd1e995) >>> 0
+const rnd = () => {
+  seed ^= seed << 13; seed >>>= 0
+  seed ^= seed >>> 17
+  seed ^= seed << 5; seed >>>= 0
+  return seed / 4294967296
+}
+
 export class Sound {
   constructor() {
     this.ctx = null
@@ -24,7 +33,7 @@ export class Sound {
     // a soft, slightly pink noise
     let b = 0
     for (let i = 0; i < n; i++) {
-      const w = Math.random() * 2 - 1
+      const w = rnd() * 2 - 1
       b = 0.97 * b + 0.03 * w
       d[i] = w * 0.6 + b * 2.2
     }
@@ -51,7 +60,7 @@ export class Sound {
     g.gain.linearRampToValueAtTime(gain, t + attack)
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur)
     s.connect(flt).connect(g).connect(this.out)
-    s.start(t, Math.random() * 1.2)
+    s.start(t, rnd() * 1.2)
     s.stop(t + dur + 0.05)
     return { flt, g, t }
   }
@@ -59,7 +68,7 @@ export class Sound {
   /** the knife breaks the crust: a few tiny crackles */
   crunch(k = 1) {
     if (!this.ready()) return
-    for (let i = 0; i < 4; i++) this.noiseBurst({ t0: i * 0.022 + Math.random() * 0.012, dur: 0.05 + Math.random() * 0.03, f: 2600 + Math.random() * 2200, q: 1.4, gain: 0.07 * k })
+    for (let i = 0; i < 4; i++) this.noiseBurst({ t0: i * 0.022 + rnd() * 0.012, dur: 0.05 + rnd() * 0.03, f: 2600 + rnd() * 2200, q: 1.4, gain: 0.07 * k })
     this.noiseBurst({ dur: 0.14, f: 900, q: 0.7, gain: 0.05 * k })
   }
 
@@ -79,7 +88,7 @@ export class Sound {
     const t = ctx.currentTime
     for (const [f, a, d] of [[612, 0.22, 0.055], [1390, 0.1, 0.035], [2710, 0.05, 0.02], [190, 0.12, 0.05]]) {
       const o = ctx.createOscillator()
-      o.frequency.value = f * (0.97 + Math.random() * 0.06)
+      o.frequency.value = f * (0.97 + rnd() * 0.06)
       const g = ctx.createGain()
       g.gain.setValueAtTime(0, t)
       g.gain.linearRampToValueAtTime(a * k, t + 0.002)

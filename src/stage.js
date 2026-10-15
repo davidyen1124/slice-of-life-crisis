@@ -36,11 +36,20 @@ export class Stage {
     manager.onProgress = (_url, done, total) => onProgress?.(done / total)
     const tex = new THREE.TextureLoader(manager)
     const maxAniso = this.renderer.capabilities.getMaxAnisotropy()
+    const pending = []
     const load = (name, srgb = true, repeat = false) => {
       const t = tex.load(`/tex/${name}`)
+      pending.push(new Promise((resolve, reject) => { t.userData.ready = resolve; t.userData.fail = reject }))
       t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace
       t.anisotropy = Math.min(8, maxAniso)
       if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping
+      return t
+    }
+    // every picture must be in before the scene is built (the knife's handle copies the board's photograph)
+    const loadTex = tex.load.bind(tex)
+    tex.load = (url) => {
+      let t = null
+      t = loadTex(url, () => t.userData.ready?.(), undefined, (e) => t.userData.fail?.(e))
       return t
     }
     this.tex = {
@@ -60,6 +69,7 @@ export class Stage {
       new GLTFLoader(manager).loadAsync('/scene.glb'),
       new HDRLoader(manager).loadAsync('/tex/room.hdr'),
     ])
+    await Promise.all(pending)
     this.gltf = gltf
     const pmrem = new THREE.PMREMGenerator(this.renderer)
     hdr.mapping = THREE.EquirectangularReflectionMapping
