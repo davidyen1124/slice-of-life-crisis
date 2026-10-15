@@ -143,7 +143,7 @@ function removePiece(piece) {
 }
 
 // ---------------------------------------------------------------------------------------------- the loop
-let paused = false
+let paused = QA // a QA run advances the clock itself, frame by frame, from the very first one
 function loop(now) {
   if (!paused) frame(now)
   requestAnimationFrame(loop)
