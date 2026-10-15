@@ -175,6 +175,7 @@ function frame(now, warm = false) {
 }
 
 let acc = 0
+let simTime = 0
 function stepPhysics(dt) {
   acc += dt
   let n = 0
@@ -184,6 +185,7 @@ function stepPhysics(dt) {
   while (acc >= STEP && n < 6) {
     if (grab) pull()
     physics.step(onImpact)
+    simTime += STEP
     acc -= STEP
     n++
   }
@@ -202,11 +204,16 @@ function syncPieces(dt) {
   }
 }
 
-/** a landing: squash the sponge along the force, and let it be heard */
+/** a landing (dv: how much the contact changed the piece's motion, m/s): squash the sponge along it, and let it be heard */
 const _a = new THREE.Vector3(), _qi = new THREE.Quaternion()
-function onImpact(piece, force, dir) {
-  const dv = (force * STEP) / piece.mass
+let lastThud = -1
+function onImpact(piece, dv, dir) {
   if (dv < 0.06) return
+  // a piece answers a landing once. Until it has moved on a few millimetres, more jolts are that landing settling,
+  // or a crumb rocking where it lies in the pile: they neither squash it again nor are heard
+  const at = piece.body.worldCom(), was = piece.landedAt
+  if (was && Math.hypot(at.x - was.x, at.y - was.y, at.z - was.z) < 0.004) return
+  piece.landedAt = at
   const s = piece.squash
   _a.set(dir.x, dir.y, dir.z).applyQuaternion(_qi.copy(piece.object.quaternion).invert()).normalize()
   const [lo, hi] = piece.extent(_a)
@@ -217,9 +224,9 @@ function onImpact(piece, force, dir) {
   const cd = c[0] * _a.x + c[1] * _a.y + c[2] * _a.z
   s.origin.set(c[0], c[1], c[2]).addScaledVector(_a, lo - cd)
   s.v += Math.min(4, (dv / L) * 0.16)
-  const now = performance.now()
-  if (dv > 0.14 && now - (piece.lastThud || 0) > 180) {
-    piece.lastThud = now
+  // in the physics' own time; a pile landing at once is a few soft thuds, not a drum roll
+  if (dv > 0.14 && simTime - (piece.lastThud ?? -1) > 0.18 && simTime - lastThud > 0.04) {
+    piece.lastThud = lastThud = simTime
     sound.thud(Math.min(1, dv / 0.6) * Math.min(1, piece.mass / 0.03 + 0.3))
   }
 }
@@ -345,7 +352,7 @@ function runJob(dt) {
     case 'lift': {
       const e = ease(k)
       P = knifeAt(j.bottom + 0.012 + (j.top + 0.06 - j.bottom - 0.012) * e, 0, j.lean * (1 - e))
-      if (P.p.y > j.top + 0.004) physics.knifeCollider.setEnabled(false)
+      if (P.p.y > j.top + 0.004) physics.setKnife(false)
       break
     }
     case 'home': {
@@ -375,7 +382,7 @@ function runJob(dt) {
     case 'flick': j.phase = 'hold'; break
     case 'hold': j.phase = 'lift'; break
     case 'lift':
-      physics.knifeCollider.setEnabled(false)
+      physics.setKnife(false)
       if (queue.length) { endJob(); break }
       j.phase = 'home'
       j.from = { p: knife.object.position.clone(), q: knife.object.quaternion.clone() }
@@ -391,7 +398,7 @@ function endJob(abort = false) {
     knife.set(knife.rest.p, knife.rest.q)
     if (job) setDent(job.pieces, 0)
   }
-  physics.knifeCollider.setEnabled(false)
+  physics.setKnife(false)
   job = null
 }
 
@@ -450,7 +457,7 @@ function pierce(j) {
   }
   j.pieces = made
   setDent(made, PRESS)
-  physics.knifeCollider.setEnabled(true)
+  physics.setKnife(true)
   // flick the smaller piece away; a thin slice goes over onto its side, a thick one only parts a little
   if (small) {
     const c = new THREE.Vector3(...small.centroid).applyQuaternion(small.object.quaternion).add(small.object.position)
@@ -609,6 +616,7 @@ const gestures = {
     if (job && job.pieces.includes(p)) return
     const local = p.object.worldToLocal(hit.point.clone())
     grab = { piece: p, local, height: Math.max(hit.point.y + 0.035, 0.07), target: hit.point.clone() }
+    p.landedAt = null // picked up, it may come down again right where it was
     p.body.setAngularDamping(7)
     p.body.wakeUp()
     canvas.classList.add('grab')

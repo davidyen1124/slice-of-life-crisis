@@ -10,6 +10,8 @@ export const STEP = 1 / 120
 // collision groups: (membership << 16) | filter
 const G_STATIC = 0x0001, G_PIECE = 0x0002, G_KNIFE = 0x0004
 const groups = (member, filter) => (member << 16) | filter
+const ZERO = { x: 0, y: 0, z: 0 }
+const SMALL = 0.008 // kg: under this a piece is a crumb or a chunk, not a slice
 
 export class Physics {
   async init() {
@@ -24,8 +26,12 @@ export class Physics {
     // most things here are a few centimetres across: tighten the tolerances to suit
     ip.lengthUnit = 0.04
     ip.numSolverIterations = 6
+    // Rapier's contacts are springs whose stiffness goes with the lighter body's mass: at the default 30 Hz a crumb
+    // with a slice resting on it sinks millimetres into the board, and the spring rocks it. Twice as stiff, it holds
+    ip.contact_natural_frequency = 60
     this.events = new RAPIER.EventQueue(true)
     this.byCollider = new Map() // collider handle -> piece
+    this.hit = new Map() // piece -> the strongest contact it felt this step
 
     // the board (its top carries the washi), and the table it stands on
     world.createCollider(
@@ -46,11 +52,18 @@ export class Physics {
     this.knifeCollider = world.createCollider(
       RAPIER.ColliderDesc.cuboid(0.135, 0.017, 0.0008)
         .setTranslation(0.135, 0.017, 0)
-        .setFriction(0.25)
-        .setCollisionGroups(groups(G_KNIFE, G_PIECE)),
+        .setFriction(0.25),
       this.knifeBody
     )
-    this.knifeCollider.setEnabled(false)
+    this.setKnife(false)
+  }
+
+  /** the blade touches the cake only while it cuts. Not with setEnabled: a disabled collider on a kinematic body
+   *  still makes contacts here, so the resting knife held whatever fell onto it awake, jostling, for good */
+  setKnife(on) {
+    if (this.knifeOn === on) return
+    this.knifeOn = on
+    this.knifeCollider.setCollisionGroups(groups(G_KNIFE, on ? G_PIECE : 0))
   }
 
   /** a dynamic body for a piece, at the pose of the loaf frame it was cut in */
@@ -63,6 +76,9 @@ export class Physics {
         .setLinearDamping(0.05)
         .setAngularDamping(0.35)
         .setCanSleep(true)
+        // a crumb of a gram or two wedged among pieces fifty times heavier never settles at the solver's usual
+        // effort: it rocks and pops, and keeps the whole pile awake. Its island gets more iterations
+        .setAdditionalSolverIterations(piece.mass < SMALL ? 10 : 0)
     )
     let desc = R.ColliderDesc.convexHull(piece.hull())
     if (!desc) {
@@ -83,6 +99,9 @@ export class Physics {
     if (angvel) body.setAngvel(angvel, true)
     piece.body = body
     piece.collider = collider
+    // how far its surface lies from its middle, to turn a change of spin into a speed
+    const b = piece.geometry.boundingBox
+    piece.reach = b.max.distanceTo(b.min) / 2
     return body
   }
 
@@ -93,16 +112,35 @@ export class Physics {
     piece.collider = null
   }
 
-  /** step the world; contact forces strong enough to squash the sponge are passed to onImpact */
+  /**
+   * step the world; a piece jolted by a contact is passed to onImpact with how much the step changed its motion (m/s).
+   * That change, not the contact force, is what a landing is: a crumb with a loaf resting on it bears a large force
+   * every step, yet nothing happens to it
+   */
   step(onImpact) {
+    for (const piece of this.byCollider.values()) {
+      const b = piece.body
+      if (b.isSleeping()) { piece.v0 = ZERO; piece.w0 = ZERO }
+      else { piece.v0 = b.linvel(); piece.w0 = b.angvel() }
+    }
     this.world.step(this.events)
+    const hit = this.hit
+    hit.clear()
     this.events.drainContactForceEvents((e) => {
       const f = e.totalForceMagnitude()
-      const dir = e.maxForceDirection()
       for (const [h, sign] of [[e.collider1(), 1], [e.collider2(), -1]]) {
         const piece = this.byCollider.get(h)
-        if (piece && piece.body) onImpact(piece, f, { x: dir.x * sign, y: dir.y * sign, z: dir.z * sign })
+        if (!piece || !piece.body) continue
+        const was = hit.get(piece)
+        if (was && was.f >= f) continue
+        const dir = e.maxForceDirection()
+        hit.set(piece, { f, dir: { x: dir.x * sign, y: dir.y * sign, z: dir.z * sign } })
       }
     })
+    for (const [piece, { dir }] of hit) {
+      const v = piece.body.linvel(), w = piece.body.angvel(), v0 = piece.v0, w0 = piece.w0
+      const dv = Math.hypot(v.x - v0.x, v.y - v0.y, v.z - v0.z) + Math.hypot(w.x - w0.x, w.y - w0.y, w.z - w0.z) * piece.reach
+      onImpact(piece, dv, dir)
+    }
   }
 }
