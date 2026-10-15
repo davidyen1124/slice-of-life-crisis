@@ -273,3 +273,6 @@ body.ready #loader { opacity: 0; visibility: hidden; }
 @media (prefers-reduced-motion: reduce) {
   #page, #loader, .hint, .count span { transition: none; }
 }
+
+/* QA runs (?qa) step the clock by hand: nothing on the page may move on its own */
+body.qa *, body.qa *::before, body.qa *::after { transition: none !important; animation: none !important; }

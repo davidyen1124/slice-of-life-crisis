@@ -10,6 +10,17 @@ import { Input } from './input.js'
 
 const params = new URLSearchParams(location.search)
 const QA = params.has('qa')
+if (QA) {
+  document.body.classList.add('qa')
+  // QA runs must repeat exactly, crumbs and all: a seeded generator in place of Math.random
+  let s = 0x2f6b1a3d
+  Math.random = () => {
+    s |= 0; s = (s + 0x6d2b79f5) | 0
+    let t = Math.imul(s ^ (s >>> 15), 1 | s)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
 const quality = params.get('q') || detectQuality()
 const UP = new THREE.Vector3(0, 1, 0)
 const DOWN = new THREE.Vector3(0, -1, 0)
@@ -732,10 +743,10 @@ function updateCount() {
     setTimeout(() => {
       el.textContent = text
       el.classList.remove('bump')
-    }, 160)
+    }, QA ? 0 : 160)
   }
   $('again').hidden = cuts === 0
-  if (cuts > 0) setTimeout(() => $('hint').classList.add('gone'), 2600)
+  if (cuts > 0) setTimeout(() => $('hint').classList.add('gone'), QA ? 0 : 2600)
 }
 
 function setupUI() {

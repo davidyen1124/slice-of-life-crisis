@@ -63,7 +63,7 @@ for (const vp of VIEWPORTS.filter((v) => !only || v.name === only)) {
   await shot('loader')
   await page.waitForFunction(() => window.__castella?.ready, null, { timeout: 120000 })
   await C(() => { window.__castella.pause(); window.__castella.clock(0) })
-  await page.waitForTimeout(1600) // the page's own fade-in (CSS)
+  await page.waitForTimeout(300)
   await step(30)
   await shot('first-view')
 
@@ -111,6 +111,7 @@ for (const vp of VIEWPORTS.filter((v) => !only || v.name === only)) {
   await step(90)
   await page.waitForTimeout(1000)
   await shot('one-cut')
+  await page.waitForTimeout(50)
   const count1 = await page.textContent('#count')
   if (count1 !== '二切れ') fail(vp.name, `count after one cut is ${count1}`)
   if (await page.isHidden('#again')) fail(vp.name, 'the new-loaf button did not appear')
