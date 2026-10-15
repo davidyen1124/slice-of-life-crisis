@@ -2,7 +2,6 @@ node_modules
 dist
 .vercel
 art/logs
-qa/*.jpg
-qa/*.png
+qa/
 .DS_Store
 .env*
