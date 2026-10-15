@@ -55,5 +55,11 @@ npm run build && vercel deploy --prod
 node scripts/imagegen.mjs      # needs a logged-in Codex CLI
 python3 scripts/textures.py && node scripts/art.mjs
 node scripts/test/slice.test.mjs && node scripts/test/stress.test.mjs   # the cutting geometry
-node scripts/qa.mjs <url>      # screenshots of every state on phones, tablets and desktops
+node scripts/qa.mjs http://localhost:5191/ local            # every state, 9 screens, Chrome + WebKit, with checks
+node scripts/qa.mjs https://nagasaki-castella.vercel.app/ prod
+node scripts/compare.mjs qa/local qa/prod                    # pixel parity between the two runs
 ```
+
+With `?qa` the page's clock stops and only moves when a test steps it, transitions are off and the crumbs are seeded,
+so a build renders the same pixels every time; the QA run checks layout, fonts, canvas size, console, and the physics
+(the cake's volume is conserved through every cut, every piece comes to rest, nothing sinks into the board).
