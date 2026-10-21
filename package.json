@@ -1,13 +1,13 @@
 {
-  "name": "wish-upon-a-slice",
+  "name": "slice-of-life-crisis",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "長崎カステラ: a Nagasaki castella you slice with your finger, in real-time 3D with real physics. Then put a candle in a slice and blow it out through your microphone.",
-  "homepage": "https://davidyen1124.github.io/wish-upon-a-slice/",
+  "description": "長崎カステラ: a Nagasaki castella you slice with your finger, in real-time 3D with real physics. Then you stick a birthday candle in a slice and blow it out through your microphone, one year older.",
+  "homepage": "https://davidyen1124.github.io/slice-of-life-crisis/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/davidyen1124/wish-upon-a-slice.git"
+    "url": "git+https://github.com/davidyen1124/slice-of-life-crisis.git"
   },
   "scripts": {
     "dev": "vite --port 5190 --host",
