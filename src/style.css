@@ -1,8 +1,15 @@
+/* the page's ink follows the room's light: when the lights go down for the candle it turns to paper, frame by frame
+   with the room (the script sets these on body as it dims, see birthday.js) */
 :root {
   --paper: #efe9df;
   --ink: #2b2420;
   --ink-soft: rgba(43, 36, 32, 0.62);
   --hair: rgba(43, 36, 32, 0.28);
+  --tool-bg: rgba(244, 239, 231, 0.55);
+  --tool-hover: rgba(250, 246, 240, 0.85);
+  --tool-edge-hover: rgba(43, 36, 32, 0.45);
+  --trail: rgba(43, 36, 32, 0.55);
+  --shade: rgba(10, 14, 22, 0);
   --shu: #b6382b;
   --mincho: 'Shippori Mincho B1', 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', serif;
   --latin: 'Cormorant Garamond', 'Times New Roman', serif;
@@ -45,6 +52,7 @@ body {
 }
 #scene.grab { cursor: grabbing; }
 #scene.over { cursor: grab; }
+body.placing #scene { cursor: copy; } /* a candle in hand */
 
 #page {
   position: fixed;
@@ -159,6 +167,10 @@ body.ready #page { opacity: 1; }
   color: var(--ink-soft);
 }
 .hint.gone { opacity: 0; transform: translateY(6px); }
+/* placing a candle: its own hint, where the first one was */
+.hint.place { position: absolute; left: 0; bottom: 0; white-space: nowrap; opacity: 0; transform: translateY(6px); }
+body.placing .hint.place { opacity: 1; transform: none; }
+body.placing #hint { opacity: 0; }
 
 /* ---------------------------------------------------------------- the two buttons, bottom right */
 .tools {
@@ -178,7 +190,7 @@ body.ready #page { opacity: 1; }
   padding: 0;
   border: 1px solid var(--hair);
   border-radius: 20px;
-  background: rgba(244, 239, 231, 0.55);
+  background: var(--tool-bg);
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   color: var(--ink);
@@ -191,10 +203,10 @@ body.ready #page { opacity: 1; }
   transition: background 0.25s ease, border-color 0.25s ease, opacity 0.4s ease, transform 0.25s ease;
 }
 .tool.wide { padding: 0 16px; letter-spacing: 0.18em; }
-.tool:hover { background: rgba(250, 246, 240, 0.85); border-color: rgba(43, 36, 32, 0.45); }
+.tool:hover { background: var(--tool-hover); border-color: var(--tool-edge-hover); }
 .tool:active { transform: scale(0.96); }
 .tool:focus-visible { outline: 2px solid var(--shu); outline-offset: 3px; }
-.tool[aria-pressed='false']::after {
+#sound[aria-pressed='false']::after {
   content: '';
   position: absolute;
   left: 9px;
@@ -205,6 +217,20 @@ body.ready #page { opacity: 1; }
   transform: rotate(-35deg);
 }
 .tool[hidden] { display: none; }
+.tool svg {
+  display: block;
+  width: 21px;
+  height: 21px;
+  margin: 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* the candle button, while a candle is being placed */
+#candle[aria-pressed='true'] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+body.dusk #candle[aria-pressed='true'] { color: #1b222d; }
 
 /* ---------------------------------------------------------------- the loader */
 #loader {
@@ -253,7 +279,308 @@ body.ready #loader { opacity: 0; visibility: hidden; }
   z-index: 11;
 }
 
+/* ---------------------------------------------------------------- the birthday: a candle, a wish
+   (The Birthday Issue's type and controls: Cormorant for the cover line, Jost for the small caps, dark glass) */
+:root {
+  --b-paper: #f4ecdf;
+  --b-vermilion: #c8372d;
+  --b-glass: rgba(24, 30, 40, 0.58);
+  --b-serif: 'Cormorant Garamond', 'Times New Roman', serif;
+  --b-sans: 'Jost', 'Helvetica Neue', Arial, sans-serif;
+  --b-mincho: 'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+  --b-gutter: clamp(16px, 3.2vw, 44px);
+  --b-lift: 0px; /* how far the controls sit above the bottom (clear of the tools on narrow screens) */
+}
+
+/* the cover line: set on the wall, left of the candle, by the script (--wish-*) */
+.wish {
+  position: fixed;
+  left: var(--wish-left, var(--gut));
+  top: var(--wish-top, 30%);
+  width: var(--wish-w, 50%);
+  pointer-events: none;
+}
+.headline {
+  margin: 0;
+  font-family: var(--b-serif);
+  font-style: italic;
+  font-weight: 300;
+  font-size: var(--hb-size, 64px);
+  line-height: 0.92;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-shadow: 0 1px 30px var(--shade);
+}
+.headline .hb,
+.headline .hb-name {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(16px);
+  filter: blur(6px);
+  transition:
+    opacity 1.6s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 1.6s cubic-bezier(0.2, 0.7, 0.2, 1),
+    filter 1.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.headline.stacked .hb { display: block; }
+.headline .l2 { transition-delay: 0.18s; }
+.headline .hb-name {
+  display: block;
+  font-size: 0.5em;
+  margin-top: 0.14em;
+  transition-delay: 0.4s;
+}
+.headline .hb-name:empty { display: none; }
+.jp-sub {
+  margin: 16px 0 0 0.1em;
+  font-family: var(--b-mincho);
+  font-weight: 500;
+  font-size: clamp(12px, 1.2vw, 16px);
+  letter-spacing: 0.5em;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  opacity: 0;
+  transition: opacity 1.6s ease 0.6s;
+}
+body.wished .headline .hb,
+body.wished .headline .hb-name { opacity: 1; transform: none; filter: none; }
+body.wished .jp-sub { opacity: 1; }
+
+/* the dock: a caption on the left, the hold-to-blow button in the middle, and Relight in its place once it is out */
+.dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0 var(--b-gutter) calc(var(--b-gutter) + env(safe-area-inset-bottom, 0px) + var(--b-lift));
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  pointer-events: none;
+}
+.caption {
+  position: absolute;
+  left: var(--gut);
+  bottom: calc(var(--gut-b) + 4px);
+  margin: 0;
+  font-family: var(--b-serif);
+  font-style: italic;
+  font-size: 20px;
+  color: var(--ink-soft);
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+body.lit:not(.placing) .caption { opacity: 1; }
+body.lit #hint { opacity: 0; }
+.control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  opacity: 0;
+  transform: translateY(10px);
+  visibility: hidden;
+  transition: opacity 0.6s ease, transform 0.6s ease, visibility 0s linear 0.6s;
+}
+body.lit .control {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  transition: opacity 0.6s ease 0.45s, transform 0.6s ease 0.45s, visibility 0s linear 0s;
+}
+.blow {
+  --level: 0;
+  position: relative;
+  width: 84px;
+  height: 84px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--b-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow:
+    inset 0 0 0 1px rgba(244, 236, 223, 0.18),
+    0 10px 30px rgba(8, 10, 16, 0.22);
+  color: var(--b-paper);
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  transform: scale(calc(1 + var(--level) * 0.08));
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+.blow:focus-visible { outline: 2px solid var(--ink); outline-offset: 5px; }
+.blow.holding { background: rgba(24, 30, 40, 0.72); }
+.blow .ring {
+  position: absolute;
+  inset: -7px;
+  width: calc(100% + 14px);
+  height: calc(100% + 14px);
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+.blow .ring circle { fill: none; stroke-width: 2; }
+.blow .ring .track { stroke: transparent; }
+.blow.holding .ring .track { stroke: var(--hair); }
+.blow .ring .level {
+  stroke: var(--ink);
+  stroke-linecap: round;
+  stroke-dasharray: calc(var(--level) * 100) 100;
+  /* an empty dash with a round cap would still draw a dot */
+  opacity: min(1, calc(var(--level) * 6));
+}
+.blow .icon {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: opacity 0.3s ease;
+}
+.blow .icon-breath { opacity: 0; }
+body.mic .blow .icon-mic { opacity: 0; }
+body.mic .blow .icon-breath { opacity: 1; }
+.label,
+.relight {
+  font-family: var(--b-sans);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+}
+.label {
+  margin: 0;
+  color: var(--ink);
+  text-align: center;
+  white-space: nowrap;
+}
+.relight {
+  position: absolute;
+  bottom: calc(var(--b-gutter) + env(safe-area-inset-bottom, 0px) + var(--b-lift) + 28px);
+  left: 50%;
+  transform: translate(-50%, 10px);
+  padding: 14px 26px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--b-glass);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: inset 0 0 0 1px rgba(244, 236, 223, 0.18);
+  color: var(--b-paper);
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s linear 0.3s;
+}
+body.relightable .relight {
+  transition: opacity 0.8s ease, transform 0.8s ease, visibility 0s linear 0s;
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+.relight:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+
+/* the microphone: asked for once, in a card */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--b-gutter);
+  background: rgba(12, 15, 22, 0.5);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+.sheet.open { opacity: 1; }
+.sheet:not(.open) { pointer-events: none; } /* closing: it lets go of the page at once */
+.sheet[hidden] { display: none; }
+.card {
+  width: min(400px, 100%);
+  padding: 34px 30px 22px;
+  border-radius: 4px;
+  background: var(--b-paper);
+  color: #2a2420;
+  font-family: var(--b-sans);
+  text-align: center;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+  transform: translateY(14px);
+  transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+  -webkit-font-smoothing: antialiased;
+}
+.sheet.open .card { transform: none; }
+.card .card-seal { width: 44px; height: auto; transform: rotate(-3deg); }
+.card h2 {
+  margin: 14px 0 10px;
+  font-family: var(--b-serif);
+  font-weight: 500;
+  font-size: 30px;
+  line-height: 1.05;
+}
+.card p {
+  margin: 0 auto 24px;
+  max-width: 32ch;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: #5b5048;
+}
+.card button {
+  display: block;
+  width: 100%;
+  border: 0;
+  cursor: pointer;
+  font-family: var(--b-sans);
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+.card .allow { padding: 16px; border-radius: 2px; background: var(--b-vermilion); color: #fff8ef; }
+.card .later { margin-top: 6px; padding: 14px; background: transparent; color: #7a6d63; }
+.card button:focus-visible { outline: 2px solid #2a2420; outline-offset: 3px; }
+
+.toast {
+  position: fixed;
+  z-index: 40;
+  left: 50%;
+  bottom: calc(var(--b-gutter) + env(safe-area-inset-bottom, 0px) + var(--b-lift) + 150px);
+  transform: translateX(-50%);
+  max-width: calc(100% - 2 * var(--b-gutter));
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(16, 20, 28, 0.62);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: var(--b-paper);
+  font-family: var(--b-sans);
+  font-size: 13px;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  -webkit-font-smoothing: antialiased;
+}
+.toast[hidden] { display: none; }
+
 /* ---------------------------------------------------------------- narrow screens */
+@media (max-width: 640px) {
+  /* the hold button and Relight go up over the tools, which fill the bottom of a phone */
+  :root { --b-lift: 50px; }
+  .caption { display: none; }
+  .blow { width: 78px; height: 78px; }
+  .hint.place { bottom: 50px; }
+}
 @media (max-width: 600px) {
   .title { gap: 10px; }
   .title h1 { font-size: 30px; }
@@ -265,6 +592,7 @@ body.ready #loader { opacity: 0; visibility: hidden; }
   .count { font-size: 14px; }
 }
 @media (max-height: 520px) and (orientation: landscape) {
+  .blow { width: 64px; height: 64px; }
   .title h1 { font-size: 26px; }
   .title .sub { display: none; }
   .seal { display: none; }
@@ -272,6 +600,7 @@ body.ready #loader { opacity: 0; visibility: hidden; }
 }
 @media (prefers-reduced-motion: reduce) {
   #page, #loader, .hint, .count span { transition: none; }
+  .headline span, .jp-sub, .control, .relight { transition-duration: 0.01s; }
 }
 
 /* QA runs (?qa) step the clock by hand: nothing on the page may move on its own */

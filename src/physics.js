@@ -4,11 +4,12 @@
 import RAPIER from '@dimforge/rapier3d-compat'
 import { BOARD, TABLE_Y, PAPER_Y } from './stage.js'
 import { DENSITY } from './castella.js'
+import { CANDLE } from './candle.js'
 
 export const STEP = 1 / 120
 
 // collision groups: (membership << 16) | filter
-const G_STATIC = 0x0001, G_PIECE = 0x0002, G_KNIFE = 0x0004
+const G_STATIC = 0x0001, G_PIECE = 0x0002, G_KNIFE = 0x0004, G_CANDLE = 0x0008
 const groups = (member, filter) => (member << 16) | filter
 const ZERO = { x: 0, y: 0, z: 0 }
 const SMALL = 0.008 // kg: under this a piece is a crumb or a chunk, not a slice
@@ -38,13 +39,13 @@ export class Physics {
       RAPIER.ColliderDesc.cuboid(BOARD.L / 2, BOARD.T / 2, BOARD.W / 2)
         .setTranslation(0, PAPER_Y - BOARD.T / 2, 0)
         .setFriction(0.7)
-        .setCollisionGroups(groups(G_STATIC, G_PIECE))
+        .setCollisionGroups(groups(G_STATIC, G_PIECE | G_CANDLE))
     )
     world.createCollider(
       RAPIER.ColliderDesc.cuboid(3, 0.02, 3)
         .setTranslation(0, TABLE_Y - 0.02, 0)
         .setFriction(0.8)
-        .setCollisionGroups(groups(G_STATIC, G_PIECE))
+        .setCollisionGroups(groups(G_STATIC, G_PIECE | G_CANDLE))
     )
 
     // the knife's blade, a thin slab in the knife's own frame (edge along +x at y = 0, spine at y = 3.4 cm)
@@ -55,6 +56,7 @@ export class Physics {
         .setFriction(0.25),
       this.knifeBody
     )
+    this.knifeOn = null
     this.setKnife(false)
   }
 
@@ -63,7 +65,8 @@ export class Physics {
   setKnife(on) {
     if (this.knifeOn === on) return
     this.knifeOn = on
-    this.knifeCollider.setCollisionGroups(groups(G_KNIFE, on ? G_PIECE : 0))
+    // (a candle lying loose is always in the knife's world: a blade that appeared inside one would fire it off)
+    this.knifeCollider.setCollisionGroups(groups(G_KNIFE, on ? G_PIECE | G_CANDLE : G_CANDLE))
   }
 
   /** a dynamic body for a piece, at the pose of the loaf frame it was cut in */
@@ -93,7 +96,7 @@ export class Physics {
       .setDensity(DENSITY)
       .setFriction(0.78)
       .setRestitution(0.0)
-      .setCollisionGroups(groups(G_PIECE, G_STATIC | G_PIECE | G_KNIFE))
+      .setCollisionGroups(groups(G_PIECE, G_STATIC | G_PIECE | G_KNIFE | G_CANDLE))
       .setActiveEvents(R.ActiveEvents.CONTACT_FORCE_EVENTS)
       .setContactForceEventThreshold(Math.max(0.02, piece.mass * 9.81 * 2.2))
     const collider = this.world.createCollider(desc, body)
@@ -106,6 +109,59 @@ export class Physics {
     const b = piece.geometry.boundingBox
     piece.reach = b.max.distanceTo(b.min) / 2
     return body
+  }
+
+  /**
+   * a candle pushed into a piece: the part that stands out of the sponge, a slim cylinder of wax, becomes part of the
+   * piece's own body (pos, rot: its middle and its turn from +y, in the piece's space). It is carried, tipped and
+   * propped up with the piece; a slice that falls over with a candle in it lands on the candle
+   */
+  attachCandle(piece, pos, rot, halfHeight) {
+    const R = this.R
+    const desc = R.ColliderDesc.cylinder(halfHeight, CANDLE.R)
+      .setTranslation(pos.x, pos.y, pos.z)
+      .setRotation({ x: rot.x, y: rot.y, z: rot.z, w: rot.w })
+      .setDensity(CANDLE.DENSITY)
+      .setFriction(0.5)
+      .setRestitution(0.0)
+      .setCollisionGroups(groups(G_PIECE, G_STATIC | G_PIECE | G_KNIFE))
+    const collider = this.world.createCollider(desc, piece.body)
+    piece.body.wakeUp()
+    return collider
+  }
+
+  detachCandle(collider) {
+    if (collider?.isValid?.() === false) return
+    if (collider) this.world.removeCollider(collider, true)
+  }
+
+  /** a candle on its own (knocked off by the knife): its middle at pos, its length along the turned +y */
+  addCandle(pos, rot, linvel, angvel) {
+    const R = this.R
+    const body = this.world.createRigidBody(
+      R.RigidBodyDesc.dynamic()
+        .setTranslation(pos.x, pos.y, pos.z)
+        .setRotation({ x: rot.x, y: rot.y, z: rot.z, w: rot.w })
+        .setLinearDamping(0.05)
+        .setAngularDamping(0.6)
+        .setCanSleep(true)
+        .setAdditionalSolverIterations(8)
+    )
+    this.world.createCollider(
+      R.ColliderDesc.cylinder(CANDLE.L / 2, CANDLE.R)
+        .setDensity(CANDLE.DENSITY)
+        .setFriction(0.6)
+        .setRestitution(0.05)
+        .setCollisionGroups(groups(G_CANDLE, G_STATIC | G_PIECE | G_KNIFE | G_CANDLE)),
+      body
+    )
+    if (linvel) body.setLinvel(linvel, true)
+    if (angvel) body.setAngvel(angvel, true)
+    return body
+  }
+
+  removeBody(body) {
+    if (body) this.world.removeRigidBody(body)
   }
 
   removePiece(piece) {

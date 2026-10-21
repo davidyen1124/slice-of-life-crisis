@@ -3,10 +3,24 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js'
+import { asset } from './asset.js'
+import { sceneDepth } from './occlusion.js'
+import { aside } from './random.js'
 
 export const BOARD = { L: 0.42, W: 0.2, T: 0.018 }
 export const TABLE_Y = -BOARD.T
 export const PAPER_Y = 0.0003 // the washi's thickness: what the cake stands on
+
+// the lights go down for the candle: what is left of the morning with the curtains drawn (fractions of each light),
+// and the colour the room takes on in the blue of the evening
+const DUSK = { sun: 0.05, bounce: 0.3, env: 0.32 }
+const WALL = new THREE.Color(0xe8e2d8)
+const DUSK_WALL = new THREE.Color(0x323b4f)
+const BOUNCE = new THREE.Color(0xf6f3ee)
+const DUSK_BOUNCE = new THREE.Color(0xa9b8d6)
+// the flame: a ~1850 K glow (the Blender scene's candle light), in candela per unit of the flame's own brightness
+const FLAME_COLOR = new THREE.Color().setRGB(1.0, 0.56, 0.22)
+export const FLAME_CD = 0.018
 
 const tmp = new THREE.Vector3()
 
@@ -29,6 +43,11 @@ export class Stage {
     this.anim = { az: null, el: null, zoom: null }
     this.size = { w: 1, h: 1, dpr: 1 }
     this.time = 0
+    // the candle's flame, its glow and its smoke: drawn after the scene, over the finished blur (see occlusion.js)
+    this.effects = aside(() => new THREE.Scene())
+    this.fxOn = false
+    this.dusk = 0
+    this.candleLight = null
   }
 
   async load(onProgress) {
@@ -38,7 +57,7 @@ export class Stage {
     const maxAniso = this.renderer.capabilities.getMaxAnisotropy()
     const pending = []
     const load = (name, srgb = true, repeat = false) => {
-      const t = tex.load(`/tex/${name}`)
+      const t = tex.load(asset(`tex/${name}`))
       pending.push(new Promise((resolve, reject) => { t.userData.ready = resolve; t.userData.fail = reject }))
       t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace
       t.anisotropy = Math.min(8, maxAniso)
@@ -64,10 +83,11 @@ export class Stage {
       board: load('board.jpg'),
       leaves: load('leaves.jpg', true, true),
       backdrop: load('backdrop.webp'),
+      wax: aside(() => load('wax.jpg', true, true)), // the birthday candle's
     }
     const [gltf, hdr] = await Promise.all([
-      new GLTFLoader(manager).loadAsync('/scene.glb'),
-      new HDRLoader(manager).loadAsync('/tex/room.hdr'),
+      new GLTFLoader(manager).loadAsync(asset('scene.glb')),
+      new HDRLoader(manager).loadAsync(asset('tex/room.hdr')),
     ])
     await Promise.all(pending)
     this.gltf = gltf
@@ -151,6 +171,51 @@ export class Stage {
     this.makeFinish()
   }
 
+  /**
+   * the candle's light (added the first time a candle is wanted, so the morning's shaders are left as they were):
+   * a point light where the flame's luminous zone is, casting the candle's and the cake's shadows on high quality
+   */
+  addCandleLight() {
+    if (this.candleLight) return this.candleLight
+    const l = (this.candleLight = aside(() => new THREE.PointLight(FLAME_COLOR, 0, 0, 2)))
+    if (this.quality !== 'low') {
+      l.castShadow = true
+      l.shadow.mapSize.set(512, 512)
+      l.shadow.camera.near = 0.003
+      l.shadow.camera.far = 0.6
+      l.shadow.bias = -0.0015
+      l.shadow.radius = 3
+      // its shadow map is drawn only while the flame burns, but it must exist (once) before any shader samples it
+      l.shadow.autoUpdate = false
+      l.shadow.needsUpdate = true
+    }
+    this.scene.add(l)
+    // compile the lit variants now, while a tap is being chosen, not on the frame the flame appears
+    this.renderer.compileAsync(this.scene, this.camera).catch(() => {})
+    return l
+  }
+
+  /** the candle's light, this frame: where the flame's middle is and how bright it burns (0..1) */
+  setCandleLight(at, brightness) {
+    const l = this.candleLight
+    if (!l) return
+    l.position.copy(at)
+    l.intensity = FLAME_CD * brightness
+    if (l.castShadow && brightness > 0) l.shadow.needsUpdate = true
+  }
+
+  /** lights down for the candle: 0 is the morning, 1 the room with the curtains drawn */
+  setDusk(d) {
+    if (d === this.dusk) return
+    this.dusk = d
+    const k = (f) => 1 + (f - 1) * d
+    this.sun.intensity = 24 * k(DUSK.sun)
+    this.bounce.intensity = 0.45 * k(DUSK.bounce)
+    this.bounce.color.copy(BOUNCE).lerp(DUSK_BOUNCE, d)
+    this.scene.environmentIntensity = 0.15 * k(DUSK.env)
+    this.backdrop.material.color.copy(WALL).lerp(DUSK_WALL, d)
+  }
+
   // ------------------------------------------------------------------------------------------ the camera rig
   /** frame the board for this screen: from the front on wide screens, along the loaf on tall ones */
   layout(w, h) {
@@ -176,6 +241,9 @@ export class Stage {
     }
     this.camera.fov = r.fov
     this.camera.aspect = aspect
+    // framed through the plain lens: the shift is worked out afresh below (through the old one, every re-fit, as when
+    // the page draws fewer pixels for a slow screen, would move the picture)
+    this.camera.clearViewOffset()
     this.camera.updateProjectionMatrix()
     this.tall = tall
     r.dist = this.fitDistance()
@@ -262,6 +330,8 @@ export class Stage {
     this.updateCamera()
     const W = Math.round(w * dpr), H = Math.round(h * dpr)
     this.rt.setSize(W, H)
+    this.fx.setSize(W, H)
+    sceneDepth.uDepthRes.value.set(W, H)
     this.finish.uniforms.uRes.value.set(W, H)
     this.finish.uniforms.uMaxBlur.value = Math.max(6, H * 0.016)
   }
@@ -279,6 +349,11 @@ export class Stage {
       depthTexture: depth,
       depthBuffer: true,
     })
+    // the layer for the flame and the smoke: light added, and how much the smoke covers (alpha)
+    this.fx = aside(() => new THREE.WebGLRenderTarget(1, 1, { type: hdr ? THREE.HalfFloatType : THREE.UnsignedByteType, depthBuffer: false }))
+    sceneDepth.tSceneDepth.value = depth
+    sceneDepth.uCamNear.value = this.camera.near
+    sceneDepth.uCamFar.value = this.camera.far
     this.finish = new THREE.ShaderMaterial({
       uniforms: {
         tColor: { value: this.rt.texture },
@@ -293,13 +368,16 @@ export class Stage {
         uExposure: { value: 1.0 },
         uTime: { value: 0 },
         uGrain: { value: 0.018 },
+        tFx: { value: this.fx.texture },
+        uFx: { value: 0 },
       },
       vertexShader: /* glsl */ `
         varying vec2 vUv;
         void main() { vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
       fragmentShader: /* glsl */ `
         precision highp float;
-        uniform sampler2D tColor, tDepth;
+        uniform sampler2D tColor, tDepth, tFx;
+        uniform float uFx;
         uniform vec2 uRes;
         uniform float uNear, uFar, uFocus, uBlur, uMaxBlur, uExposure, uTime, uGrain;
         uniform int uTaps;
@@ -347,6 +425,11 @@ export class Stage {
             }
             col = acc / wsum;
           }
+          // the candle's flame and smoke, in focus over the blurred picture: the smoke hides, the light adds
+          if (uFx > 0.5) {
+            vec4 fx = texture2D(tFx, vUv);
+            col = col * (1.0 - fx.a) + fx.rgb;
+          }
           col *= uExposure;
           col = neutral(col);
           // a printed page: blacks lifted a touch and warm, saturation eased a little
@@ -389,6 +472,14 @@ export class Stage {
     const r = this.renderer
     r.setRenderTarget(this.rt)
     r.render(this.scene, this.camera)
+    u.uFx.value = this.fxOn ? 1 : 0
+    if (this.fxOn) {
+      r.setRenderTarget(this.fx)
+      r.setClearColor(0x000000, 0)
+      r.clear(true, false, false)
+      r.render(this.effects, this.camera)
+      r.setClearColor(0xefe9df, 1)
+    }
     r.setRenderTarget(null)
     r.render(this.postScene, this.postCam)
   }

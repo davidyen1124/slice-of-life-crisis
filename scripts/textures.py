@@ -1,4 +1,4 @@
-# art/raw (Codex photographs, the Blender panorama) -> public/tex: tiling colour maps, normal maps, the light gobo.
+# assets-src/art/raw (Codex photographs, the Blender panorama) -> public/tex: tiling colour maps, normal maps, the light gobo.
 # usage: python3 scripts/textures.py
 #
 # Tiling: each photograph is made seamless by cross-fading a band at its right/bottom edge into its left/top edge,
@@ -10,7 +10,7 @@ import numpy as np
 from PIL import Image, ImageFilter
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-RAW = os.path.join(ROOT, 'art/raw')
+RAW = os.path.join(ROOT, 'assets-src/art/raw')
 OUT = os.path.join(ROOT, 'public/tex')
 os.makedirs(OUT, exist_ok=True)
 
@@ -122,3 +122,6 @@ print('wrote backdrop.webp')
 
 shutil.copyfile(os.path.join(RAW, 'room.hdr'), os.path.join(OUT, 'room.hdr'))
 print('copied room.hdr')
+
+# the birthday candle's wax: ivory, tiling (its shader wraps it round the candle in the candle's own space)
+save(resize(seamless(load('wax')), (512, 512)), 'wax.jpg', 88)

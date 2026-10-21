@@ -1,4 +1,5 @@
-// One finger or the mouse: swipe to cut; press and hold to press into the sponge, then move to lift and carry.
+// One finger or the mouse: swipe to cut; press and hold to press into the sponge, then move to lift and carry; tap to
+// put the candle where it goes, when there is one to place.
 // Two fingers (or the right button, or shift-drag): turn and tilt the view; pinch or the wheel: come closer.
 // A double tap on the table puts the view back.
 const HOLD_MS = 240
@@ -125,11 +126,14 @@ export class Input {
         break
       case 'poke':
         this.h.pokeEnd()
+        if (!cancelled) this.h.tap?.(p.x, p.y)
         break
       case 'grab':
         this.h.grabEnd()
         break
       case 'pending': {
+        // a tap is the page's to use first (it is where a candle goes, when one is being placed)
+        if (!cancelled && this.h.tap?.(p.x, p.y)) break
         const now = performance.now()
         if (now - this.lastTap < 320 && !this.h.pick(p.x, p.y)) this.h.resetView()
         this.lastTap = now

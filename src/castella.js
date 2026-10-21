@@ -11,6 +11,7 @@
 // with distance and toward the supported bottom), and a piece that lands hard squashes and springs back.
 import * as THREE from 'three'
 import { meshVolume, meshCentroid, split, hullPoints, polytope, polytopeMesh } from './slice.js'
+import { aside } from './random.js'
 
 export const LOAF = { L: 0.27, W: 0.09, H: 0.0605 }
 export const DENSITY = 398 // kg/m³: a 1号 castella weighs 580 g and fills 27 × 9 × 6 cm
@@ -280,6 +281,25 @@ export function createCastellaDepthMaterial(uniforms) {
   return m
 }
 
+/** and for the shadow of a point light (the candle's flame), which measures distance rather than depth */
+export function createCastellaDistanceMaterial(uniforms) {
+  const m = new THREE.MeshDistanceMaterial()
+  m.customProgramCacheKey = () => 'castella-distance-v1'
+  m.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, uniforms)
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\n' + vertexHead)
+      .replace(
+        '#include <begin_vertex>',
+        /* glsl */ `
+        vec3 gradS; float sDisp = indent(position, gradS);
+        vec3 transformed = vec3(position) + uDown * sDisp;
+        transformed = uSquash * (transformed - uSquashO) + uSquashO;`
+      )
+  }
+  return m
+}
+
 /** one piece of the loaf: a mesh, a rigid body, and the sponge's give */
 export class Piece {
   constructor(mesh, planes, tex) {
@@ -304,6 +324,7 @@ export class Piece {
     this.object.castShadow = true
     this.object.receiveShadow = true
     this.object.customDepthMaterial = createCastellaDepthMaterial(this.uniforms)
+    this.object.customDistanceMaterial = aside(() => createCastellaDistanceMaterial(this.uniforms))
     this.object.userData.piece = this
     // the squash spring: strain along an axis, in the piece's space
     this.squash = { s: 0, v: 0, axis: new THREE.Vector3(0, 1, 0), origin: new THREE.Vector3() }
@@ -381,6 +402,7 @@ export class Piece {
     this.geometry.dispose()
     this.material.dispose()
     this.object.customDepthMaterial.dispose()
+    this.object.customDistanceMaterial.dispose()
   }
 }
 

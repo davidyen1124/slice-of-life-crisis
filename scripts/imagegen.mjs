@@ -1,13 +1,13 @@
 // Paints every picture the site uses with Codex CLI's built-in image_gen tool: one `codex exec` per picture.
-// usage: node scripts/imagegen.mjs [--force] [--jobs 3] [name ...]       ->  art/raw/<name>.png
+// usage: node scripts/imagegen.mjs [--force] [--jobs 3] [name ...]       ->  assets-src/art/raw/<name>.png
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
-const RAW = path.join(ROOT, 'art/raw')
-const LOGS = path.join(ROOT, 'art/logs')
+const RAW = path.join(ROOT, 'assets-src/art/raw')
+const LOGS = path.join(ROOT, 'assets-src/art/logs')
 const CODEX_IMAGES = path.join(process.env.CODEX_HOME || path.join(os.homedir(), '.codex'), 'generated_images')
 fs.mkdirSync(RAW, { recursive: true })
 fs.mkdirSync(LOGS, { recursive: true })
@@ -91,6 +91,24 @@ export const ART = [
       'two slices cut from its end, one fallen over, showing the bright honey-yellow fine crumb, the smooth deep caramel-brown top crust and the thin dark bottom crust set with zarame sugar crystals.',
       'A thin Japanese knife lies beside it. Soft morning window light from the left with gentle dappled leaf shadows, shallow depth of field,',
       'a celadon yunomi of green tea blurred in the background. Airy, muted, natural colours, lots of calm empty space on the right. No text, no hands.',
+    ].join('\n'),
+  },
+  {
+    name: 'wax',
+    size: 'square (1024x1024)',
+    prompt: [
+      'Texture of the surface of an ivory beeswax-and-paraffin candle, about 3 x 3 cm, seen straight on.',
+      'Creamy ivory (sRGB around #F1E6CF), smooth and slightly waxy with very faint swirls and micro-scratches, softly translucent look.',
+      FLAT,
+    ].join('\n'),
+  },
+  {
+    name: 'seal',
+    size: 'square (1024x1024), transparent background',
+    prompt: [
+      'A traditional Japanese red cinnabar ink seal stamp impression (hanko / rakkan) of the single kanji 祝 (celebration) in classic seal-script (tensho) style,',
+      'inside a square border with slightly rounded corners, stamped by hand on paper: vermilion red (#C8372D), uneven ink density, tiny voids and',
+      'speckles where the paper grain broke the ink, crisp but organic edges. Isolated stamp only, centred, flat front view.',
     ].join('\n'),
   },
   {

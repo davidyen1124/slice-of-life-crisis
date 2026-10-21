@@ -1,5 +1,6 @@
 // Small sounds, synthesised: the crust giving way, the soft rasp of the blade through the sponge, the edge
-// meeting the hinoki board, and the hush of a slice laid down. No samples: noise and a few struck partials.
+// meeting the hinoki board, the hush of a slice laid down, a candle tucked in and lit. No samples: noise and a few
+// struck partials.
 // the sounds draw their own random numbers, so whether audio happens to be running never changes anything else
 let seed = (Date.now() ^ 0x5bd1e995) >>> 0
 const rnd = () => {
@@ -105,6 +106,22 @@ export class Sound {
     if (!this.ready()) return
     this.noiseBurst({ dur: 0.09 + 0.05 * k, f: 260, q: 0.6, gain: Math.min(0.16, 0.06 + 0.12 * k), attack: 0.003, type: 'lowpass' })
     this.noiseBurst({ dur: 0.05, f: 1200, q: 0.8, gain: 0.02 * k, attack: 0.002 })
+  }
+
+  /** a match put to the wick: a short breathy flare, and the soft pop of the wick catching */
+  ignite(k = 1) {
+    if (!this.ready()) return
+    const { flt, t } = this.noiseBurst({ dur: 0.32, f: 2400, q: 0.5, gain: 0.05 * k, attack: 0.02 })
+    flt.frequency.setValueAtTime(3200, t)
+    flt.frequency.exponentialRampToValueAtTime(900, t + 0.3)
+    this.noiseBurst({ t0: 0.05, dur: 0.12, f: 320, q: 0.7, gain: 0.07 * k, attack: 0.006, type: 'lowpass' })
+  }
+
+  /** a candle pushed into the sponge: a soft, dry squeak of crumb */
+  tuck(k = 1) {
+    if (!this.ready()) return
+    this.noiseBurst({ dur: 0.12, f: 700, q: 1.1, gain: 0.05 * k, attack: 0.03 })
+    this.noiseBurst({ t0: 0.08, dur: 0.06, f: 260, q: 0.6, gain: 0.05 * k, attack: 0.004, type: 'lowpass' })
   }
 
   ready() { return this.ctx && this.on && this.ctx.state === 'running' }

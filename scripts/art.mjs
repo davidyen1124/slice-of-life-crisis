@@ -1,11 +1,11 @@
-// art/raw (Codex's photographs) -> public: the link-preview card, the icons, the web manifest.
+// assets-src/art/raw (Codex's photographs) -> public: the link-preview card, the icons, the web manifest.
 // usage: node scripts/art.mjs
 import fs from 'node:fs'
 import path from 'node:path'
 import sharp from 'sharp'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
-const raw = (n) => path.join(ROOT, 'art/raw', n)
+const raw = (n) => path.join(ROOT, 'assets-src/art/raw', n)
 const pub = (n) => path.join(ROOT, 'public', n)
 
 // icons: the single slice, cropped close
@@ -42,13 +42,20 @@ fs.writeFileSync(pub('manifest.webmanifest'), JSON.stringify({
   name: '長崎カステラ',
   short_name: 'カステラ',
   description: 'A Nagasaki castella you slice with your finger.',
-  start_url: '/',
+  start_url: './',
   display: 'fullscreen',
   background_color: '#efe9df',
   theme_color: '#efe9df',
   icons: [
-    { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-    { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+    { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
   ],
 }, null, 2) + '\n')
+// the 祝 seal on the microphone card: the stamp alone, trimmed to its ink
+await sharp(await sharp(raw('seal.png')).trim({ threshold: 40 }).toBuffer())
+  .resize(176, 176, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+  .extend({ top: 32, bottom: 32, left: 32, right: 32, background: { r: 0, g: 0, b: 0, alpha: 0 } })
+  .webp({ quality: 88, alphaQuality: 90 })
+  .toFile(process.env.SEAL_OUT || pub('seal.webp'))
+
 console.log('art done')

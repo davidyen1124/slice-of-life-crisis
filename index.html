@@ -4,11 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <title>長崎カステラ</title>
-  <meta name="description" content="一棹のカステラを、指で切る。A Nagasaki castella you slice with your finger, in real-time 3D." />
+  <meta name="description" content="一棹のカステラを、指で切る。A Nagasaki castella you slice with your finger, in real-time 3D. Then put a candle on it and blow it out through your microphone." />
   <meta name="theme-color" content="#efe9df" />
   <meta property="og:title" content="長崎カステラ" />
-  <meta property="og:description" content="一棹、好きな厚さに。A Nagasaki castella you slice with your finger." />
-  <meta property="og:image" content="/og.jpg" />
+  <meta property="og:description" content="一棹、好きな厚さに。A Nagasaki castella you slice with your finger. Then a candle, and a wish." />
+  <meta property="og:site_name" content="Wish Upon a Slice" />
+  <meta property="og:image" content="https://davidyen1124.github.io/wish-upon-a-slice/og.jpg" />
+  <meta property="og:url" content="https://davidyen1124.github.io/wish-upon-a-slice/" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="icon" href="/favicon-32.png" sizes="32x32" />
@@ -16,8 +20,9 @@
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700&text=%E3%80%81%E3%80%82%E3%81%86%E3%81%8D%E3%81%95%E3%81%9E%E3%81%A3%E3%81%A6%E3%81%A7%E3%81%AA%E3%81%AB%E3%81%AE%E3%82%82%E3%82%8B%E3%82%8C%E3%82%92%E3%82%AB%E3%82%B9%E3%83%86%E3%83%A9%E4%B8%80%E4%B8%83%E4%B8%89%E4%B9%9D%E4%BA%8C%E4%BA%94%E5%85%AB%E5%85%AD%E5%88%87%E5%8D%81%E5%8E%9A%E5%9B%9B%E5%A5%BD%E5%B4%8E%E6%8C%87%E6%A3%B9%E9%95%B7%E9%9F%B3&display=block" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,400;1,500&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700&text=%E3%80%81%E3%80%82%E3%81%86%E3%81%8D%E3%81%8F%E3%81%95%E3%81%9D%E3%81%9E%E3%81%A3%E3%81%A6%E3%81%A7%E3%81%AA%E3%81%AB%E3%81%AE%E3%82%82%E3%82%8B%E3%82%8C%E3%82%8D%E3%82%92%E3%82%AB%E3%82%B9%E3%83%86%E3%83%A9%E4%B8%80%E4%B8%83%E4%B8%89%E4%B9%9D%E4%BA%8C%E4%BA%94%E5%85%AB%E5%85%AD%E5%88%87%E5%8D%81%E5%8E%9A%E5%9B%9B%E5%A5%BD%E5%B4%8E%E6%8C%87%E6%A3%B9%E7%A5%9D%E7%AB%8B%E9%95%B7%E9%9F%B3&display=block" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,300;1,400;1,500&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500&family=Shippori+Mincho:wght@500&text=%E3%81%8A%E8%AA%95%E7%94%9F%E6%97%A5%E3%81%8A%E3%82%81%E3%81%A7%E3%81%A8%E3%81%86&display=swap" />
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
@@ -38,13 +43,59 @@
 
     <footer class="foot">
       <p class="hint" id="hint"><span class="ja">なぞって、切る</span><span class="en">swipe to slice · hold to lift</span></p>
+      <p class="hint place" aria-live="polite"><span class="ja">ろうそくを、立てる</span><span class="en">tap the cake where it goes</span></p>
     </footer>
 
     <div class="tools">
       <button id="sound" class="tool" type="button" aria-pressed="true" aria-label="Sound on">音</button>
       <button id="again" class="tool wide" type="button" aria-label="A new castella" hidden>もう一棹</button>
+      <button id="candle" class="tool" type="button" aria-pressed="false" aria-label="Put a birthday candle on the cake" title="A birthday candle" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9.6 10.4h4.8v10.4H9.6z" />
+          <path d="M9.6 14.6l4.8-2.4M9.6 18.8l4.8-2.4" />
+          <path d="M12 2.6c1.7 2 2.3 3.2 2.3 4.3a2.3 2.3 0 0 1-4.6 0c0-1.1.6-2.3 2.3-4.3z" />
+        </svg>
+      </button>
+    </div>
+
+    <section class="wish" aria-live="polite">
+      <h2 class="headline"><span class="hb l1">Happy</span> <span class="hb l2">Birthday</span><span class="hb-name"></span></h2>
+      <p class="jp-sub">お誕生日おめでとう</p>
+    </section>
+
+    <div class="dock">
+      <p class="caption">Make a wish.</p>
+      <div class="control">
+        <button class="blow" type="button" aria-label="Enable microphone to blow out the candle">
+          <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
+            <circle class="track" cx="50" cy="50" r="46" />
+            <circle class="level" cx="50" cy="50" r="46" pathLength="100" />
+          </svg>
+          <svg class="icon icon-mic" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="9" y="3" width="6" height="11" rx="3" />
+            <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" />
+          </svg>
+          <svg class="icon icon-breath" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 9h11a3 3 0 1 0-3-3M3 13h15a3 3 0 1 1-3 3M3 17h7" />
+          </svg>
+        </button>
+        <p class="label">Enable mic</p>
+      </div>
+      <button class="relight" type="button">Relight</button>
     </div>
   </div>
+
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
+    <div class="card">
+      <img class="card-seal" src="/seal.webp" alt="" width="120" height="120" />
+      <h2 id="sheet-title">Blow out the candle</h2>
+      <p>The page listens through your microphone while you hold the button. A stronger breath puts the flame out faster. Nothing is recorded.</p>
+      <button class="allow" type="button">Allow microphone</button>
+      <button class="later" type="button">Not now</button>
+    </div>
+  </div>
+
+  <div class="toast" role="status" hidden></div>
 
   <div id="loader" role="status" aria-label="Loading">
     <p class="ltitle">長崎カステラ</p>

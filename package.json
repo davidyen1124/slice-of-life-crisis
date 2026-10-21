@@ -1,13 +1,22 @@
 {
-  "name": "castella",
+  "name": "wish-upon-a-slice",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "長崎カステラ: a real-time, physically simulated Nagasaki castella you can slice with a finger.",
+  "description": "長崎カステラ: a Nagasaki castella you slice with your finger, in real-time 3D with real physics. Then put a candle in a slice and blow it out through your microphone.",
+  "homepage": "https://davidyen1124.github.io/wish-upon-a-slice/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davidyen1124/wish-upon-a-slice.git"
+  },
   "scripts": {
     "dev": "vite --port 5190 --host",
     "build": "vite build",
-    "preview": "vite preview --port 5191 --host"
+    "preview": "vite preview --port 5191 --host",
+    "qa": "node scripts/qa.mjs",
+    "qa:breath": "node scripts/physics-qa.mjs",
+    "qa:motion": "node scripts/motion.mjs",
+    "test": "node scripts/test/slice.test.mjs && node scripts/test/stress.test.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",

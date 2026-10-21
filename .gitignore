@@ -1,7 +1,6 @@
 node_modules
 dist
-.vercel
-art/logs
+assets-src/art/logs
 qa/
 .DS_Store
 .env*

@@ -1,11 +1,11 @@
 # 長崎カステラ — the scene, built and lit in Blender, in metres.
 #
 #   public/scene.glb  the castella loaf, the hinoki board, the washi sheet, the sujihiki knife and a yunomi of tea
-#   art/raw/room.hdr  a 360° panorama of the morning room, rendered in Cycles from where the cake sits,
+#   assets-src/art/raw/room.hdr  a 360° panorama of the morning room, rendered in Cycles from where the cake sits,
 #                     which lights the web scene and is what the knife and the crust reflect
-#   art/raw/look.png  (with --look) a Cycles still of the whole scene from the web page's desktop camera, for QA
+#   assets-src/art/raw/look.png  (with --look) a Cycles still of the whole scene from the web page's desktop camera, for QA
 #
-# usage: Blender -b -P blender/scene.py -- [--glb public/scene.glb] [--hdr art/raw/room.hdr] [--look art/raw/look.png]
+# usage: Blender -b -P assets-src/blender/scene.py -- [--glb public/scene.glb] [--hdr assets-src/art/raw/room.hdr] [--look assets-src/art/raw/look.png]
 #
 # The loaf: a 1号 castella (580 g, sold in a 28.5 x 10 x 6.5 cm box) is 27 x 9 x 6 cm. It is baked as a big slab in a
 # paper-lined wooden frame and cut into loaves, so its four sides are cut crumb, and only the top (a smooth, deep
@@ -18,9 +18,9 @@ from mathutils import Vector, noise
 argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 def arg(name, default=None):
     return argv[argv.index(name) + 1] if name in argv else default
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 GLB = os.path.join(ROOT, arg('--glb', 'public/scene.glb'))
-HDR = os.path.join(ROOT, arg('--hdr', 'art/raw/room.hdr'))
+HDR = os.path.join(ROOT, arg('--hdr', 'assets-src/art/raw/room.hdr'))
 LOOK = arg('--look')
 SAMPLES = int(arg('--samples', '192'))
 PANO = int(arg('--pano', '512'))  # it only lights the scene and blurs into the knife: 512 x 256 is plenty

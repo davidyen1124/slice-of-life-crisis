@@ -1,4 +1,4 @@
-// 長崎カステラ: a loaf of castella on a hinoki board, to be sliced with a finger.
+// 長崎カステラ: a loaf of castella on a hinoki board, to be sliced with a finger, and a candle for it on a birthday.
 import * as THREE from 'three'
 import { Stage, PAPER_Y, TABLE_Y } from './stage.js'
 import { Physics, STEP } from './physics.js'
@@ -7,6 +7,7 @@ import { Knife, pose, BLADE } from './knife.js'
 import { Crumbs } from './crumbs.js'
 import { Sound } from './sound.js'
 import { Input } from './input.js'
+import { Birthday } from './birthday.js'
 
 const params = new URLSearchParams(location.search)
 const QA = params.has('qa')
@@ -35,6 +36,7 @@ const raycaster = new THREE.Raycaster()
 let pieces = []
 let knife = null
 let crumbs = null
+let birthday = null
 let job = null
 const queue = []
 let grab = null
@@ -57,6 +59,7 @@ async function boot() {
   knife = new Knife(stage.meshes, stage.tex)
   stage.scene.add(knife.object)
   crumbs = new Crumbs(stage.scene)
+  birthday = new Birthday({ stage, physics, sound, qa: QA, pick, pieces: () => pieces })
   stage.resize()
   newLoaf(false)
   // compile every shader now, so the first cut does not stutter
@@ -68,6 +71,7 @@ async function boot() {
   new Input(canvas, gestures)
   // the keyboard: space or enter takes the next slice off the end of the biggest piece
   window.addEventListener('keydown', (e) => {
+    if (birthday.key(e)) return
     if (e.target.closest?.('button') || e.repeat) return
     if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); sound.wake(); keyboardCut() }
   })
@@ -83,6 +87,12 @@ async function boot() {
   new ResizeObserver(refit).observe(canvas)
   ready = true
   requestAnimationFrame(() => document.body.classList.add('ready'))
+  // a birthday link (?name=): the candle goes in by itself, a moment after the page appears
+  if (birthday.named) birthday.later(0.9, () => {
+    const p = pieces[0]
+    const spot = p && birthday.spotOn(p, new THREE.Vector3(-0.03, LOAF.H, 0.006).applyMatrix4(p.object.matrixWorld))
+    if (spot?.ok) birthday.plant(spot)
+  })
   lastFrame = performance.now()
   requestAnimationFrame(loop)
 }
@@ -105,6 +115,7 @@ function detectQuality() {
 
 // ------------------------------------------------------------------------------------------------- the loaf
 function newLoaf(drop) {
+  birthday?.newLoaf()
   for (const p of [...pieces]) removePiece(p)
   crumbs?.clear()
   queue.length = 0
@@ -134,6 +145,7 @@ function addPiece(piece, pos, rot, v, w) {
 }
 
 function removePiece(piece) {
+  birthday?.pieceRemoved(piece)
   stage.scene.remove(piece.object)
   physics.removePiece(piece)
   piece.dispose()
@@ -167,9 +179,11 @@ function frame(now, warm = false) {
   else if (queue.length) beginJob(queue.shift())
   stepPhysics(dt)
   syncPieces(dt)
+  birthday.update(dt)
   crumbs.update(dt)
   easeView(dt)
   stage.updateCamera()
+  birthday.beforeRender()
   stage.render(dt)
   if (!QA && !warm) adapt(dt)
 }
@@ -367,7 +381,10 @@ function runJob(dt) {
   // the next phase
   j.t = 0
   switch (j.phase) {
-    case 'travel': j.phase = 'descend'; break
+    case 'travel':
+      j.phase = 'descend'
+      birthday.knock(j) // a candle in the blade's way is knocked over as it comes down
+      break
     case 'descend': j.phase = 'press'; break
     case 'press':
       pierce(j)
@@ -455,6 +472,7 @@ function pierce(j) {
     }
     cuts++
   }
+  birthday.piecesMade(made)
   j.pieces = made
   setDent(made, PRESS)
   physics.setKnife(true)
@@ -591,6 +609,7 @@ const trail = makeTrail()
 const gestures = {
   wake: () => sound.wake(),
   pick: (x, y) => pick(x, y),
+  tap: (x, y) => birthday.tap(x, y),
   strokeStart(points) { trail.draw(points) },
   strokeMove(points) { trail.draw(points) },
   strokeCancel() { trail.fade() },
@@ -645,6 +664,7 @@ const gestures = {
   hover(x, y) {
     if (grab) return
     canvas.classList.toggle('over', !!pick(x, y))
+    birthday.hover(x, y)
   },
 }
 
@@ -655,8 +675,10 @@ function easeView(dt) {
   r.userAz += (view.az - r.userAz) * k
   r.userEl += (view.el - r.userEl) * k
   r.userZoom += (view.zoom - r.userZoom) * k
-  // the lens focuses on whatever of the cake lies at the centre of the picture
-  if (focus.n++ % 4 === 0) {
+  // the lens focuses on whatever of the cake lies at the centre of the picture (or on a candle, while it burns)
+  const candle = birthday.focus()
+  if (candle) focus.want.copy(candle)
+  else if (focus.n++ % 4 === 0) {
     const c = stage.target.clone().project(stage.camera)
     raycaster.setFromCamera(new THREE.Vector2(c.x, c.y), stage.camera)
     const hit = raycaster.intersectObjects(pieces.map((p) => p.object), false)[0]
@@ -707,7 +729,7 @@ function makeTrail() {
   svg.setAttribute('class', 'trail')
   Object.assign(svg.style, { position: 'fixed', inset: '0', width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' })
   const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-  Object.assign(path.style, { fill: 'none', stroke: 'rgba(43,36,32,0.55)', strokeWidth: '1.4', strokeLinecap: 'round', strokeLinejoin: 'round', transition: 'opacity 0.5s ease' })
+  Object.assign(path.style, { fill: 'none', stroke: 'var(--trail)', strokeWidth: '1.4', strokeLinecap: 'round', strokeLinejoin: 'round', transition: 'opacity 0.5s ease' })
   svg.appendChild(path)
   document.getElementById('page').before(svg)
   let fadeT = 0
@@ -754,6 +776,7 @@ function updateCount() {
     }, QA ? 0 : 160)
   }
   $('again').hidden = cuts === 0
+  $('candle').hidden = cuts === 0 && !birthday?.named
   if (cuts > 0) setTimeout(() => $('hint').classList.add('gone'), QA ? 0 : 2600)
 }
 
@@ -796,7 +819,17 @@ window.__castella = {
   get busy() { return !!job || queue.length > 0 },
   get asleep() { return pieces.every((p) => p.body.isSleeping()) },
   get cuts() { return cuts },
+  get birthday() { return birthday },
   stage,
+  /** put the candle in (world x, z: a point on top of the cake), as a tap there would */
+  candleAt(x, z) {
+    birthday.ensure()
+    raycaster.set(new THREE.Vector3(x, 0.5, z), DOWN)
+    const hit = raycaster.intersectObjects(pieces.map((p) => p.object), false)[0]
+    const spot = hit && birthday.spotOn(hit.object.userData.piece, hit.point)
+    if (spot?.ok) birthday.plant(spot)
+    return spot ? { ok: spot.ok, reason: spot.reason } : null
+  },
   /** screen position of a point in the scene */
   screen(x, y, z) {
     const v = new THREE.Vector3(x, y, z).project(stage.camera)
